@@ -16,7 +16,7 @@ class Navegacao:
         self.nave_atual = nave_atual
         self.ponto_ref = self.nave_atual.orbit.body.reference_frame
         self.voo_nave = self.nave_atual.flight(self.ponto_ref)
-        self.controle_mag.set_tempo_amostra(25)
+        self.controle_mag.tempo_amostragem(40)
         self.controle_mag.ajustar_pid(0.5, 0.001, 10)
         self.controle_mag.limitar_saida(-1, 1)
         self.mirar_nave()
@@ -39,7 +39,7 @@ class Navegacao:
         self.nave_atual.auto_pilot.target_pitch_and_heading(self.alinhar_direcao.elevacao, self.alinhar_direcao.direcao)
         self.nave_atual.auto_pilot.target_roll = self.alinhar_direcao.direcao
  
- #       print(self.alinhar_direcao.toString())
+#       print(self.alinhar_direcao.toString())
  
 #      # FIM DO METODO MAIN
 # 
@@ -64,9 +64,9 @@ class Navegacao:
             self.to_ret.direcao = 360 + self.to_ret.direcao
  
         self.comprimento = math.pow(1 + self.vec.magnitude(), 1) - 1
-        self.controle_mag.set_valor_entrada(self.comprimento)
-        self.controle_mag.set_valor_limite(self.vetorDaVelocidade.magnitude())
-        self.to_ret.elevacao = max(60, (90 - self.comprimento * 2))
+        self.controle_mag.entrada_pid(self.comprimento)
+        self.controle_mag.limite_pid(self.vetorDaVelocidade.magnitude())
+        self.to_ret.elevacao = max(60, (90 - int(self.comprimento) * 2))
  
 #         print("Comprimento: " + str(self.comprimento))
 #         print("Comprimento Vel: " + str(self.vetorDaVelocidade.magnitude()))
