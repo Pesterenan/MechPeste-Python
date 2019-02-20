@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# coding: "UTF-8"
 # Autor: Renan Torres <pesterenan@gmail.com>
 # Data: 22/08/2018 
 # Atualizado: 10/01/2019
@@ -12,7 +12,7 @@ class ControlePID:
 	"""Controlador PID escrito em Python para uso com o mod MechPeste"""
 	__name__ = "Controlador PID"
 	saida_min, saida_max = -1, 1 	# valores de saída padrão
-	kp, ki, kd = 0.025, 0.001, 0.95 	# variáveis de ajuste padrão do PID
+	kp, ki, kd = 0.025, 0.001, 1 	# variáveis de ajuste padrão do PID
 	tempo_amostra = 0.02 			# tempo de amostragem padrão
 	
 	def __init__(self):
