@@ -1,51 +1,74 @@
+#!/usr/bin/env python3
+# coding: "UTF-8"
+# Autor: Renan Torres <pesterenan@gmail.com>
+# Data: 07/02/2019
+# Módulo Vetor
+
 import math
 
-class Vetor():
-    x = 0
-    y = 0
 
-    def __init__(self,arg0,arg1):
-        self.x = arg0
-        self.y = arg1
-    def vetor_distancia(self,t0,t1):
-        return Vetor(-(t0[2]) + (t1[2]), -(t0[1]) + (t1[1]))
+class Vetor:
+	x = 0
+	y = 0
+	direcao = 0
 
-    def toString(self): 
-        return "("+ str(self.x) + ","+ str(self.y) +")"
-    
-    def set(self,arg0,arg1):
-        self.x = arg0
-        self.y = arg1
-    
-    def inverte(self):
-        return Vetor(self.y, self.x)
-    
-    def magnitude(self): 
-        return (math.sqrt(self.x*self.x + self.y*self.y))
-    
-    def normalizar(self): 
-        m = self.magnitude()
-        if (m != 0):
-            return Vetor(self.x/m,self.y/m)
-        return Vetor(self.x,self.y)
-    
-    def limitar(self,maxi):
-        if (self.magnitude() > maxi):
-            self.normalizar()
-            self.multiplica(maxi)
-            
-    def soma(self,outro):
-        return Vetor(self.x + outro.x, self.y + outro.y)
-    
-    def subtrai(self,outro):
-        return Vetor(self.x - outro.x, self.y - outro.y)
-    
-    def multiplica(self,scalar):
-        return Vetor(self.x * scalar, self.y * scalar)
-    
-    def divide(self,scalar):
-        if (scalar != 0):
-            return Vetor(self.x / scalar, self.y / scalar)
-        return Vetor(0,0)
-    
-    
+	def __init__(self, arg0=None, arg1=None):
+		if type(arg0) == tuple:
+			self.x = round(arg0[0], 3)
+			self.y = round(arg0[1], 3)
+		else:
+			self.x = round(arg0, 3)
+			self.y = round(arg1, 3)
+
+	def __str__(self):
+		return "(" + str(round(self.x, 3)) + "," + str(round(self.y, 3)) + ")"
+
+	def inverte(self):
+		return Vetor(self.y, self.x)
+
+	def magnitude(self):
+		return math.sqrt(self.x ** 2 + self.y ** 2)
+
+	def normalizar(self):
+		m = self.magnitude()
+		if m != 0:
+			return Vetor(self.x / m, self.y / m)
+		return Vetor(self.x, self.y)
+
+	def limitar(self, maxi):
+		if self.magnitude() > maxi:
+			self.normalizar()
+			self.multiplica(maxi)
+
+
+	def soma(self, outro):
+		return Vetor(self.x + outro.x, self.y + outro.y)
+
+	def subtrai(self, outro):
+		return Vetor(self.x - outro.x, self.y - outro.y)
+
+	def multiplica(self, escalar):
+		return Vetor(self.x * escalar, self.y * escalar)
+
+	def divide(self, escalar):
+		if escalar != 0:
+			return Vetor(self.x / escalar, self.y / escalar)
+		return Vetor(0, 0)
+
+	def angulo_direcao(self):
+		self.direcao = (math.atan2(self.y, self.x) / math.pi) * 180
+		if self.direcao < 0:
+			self.direcao = 360 + self.direcao
+		return self.direcao
+
+
+def vetor_distancia(vetor_a, vetor_b):
+	return Vetor(-(vetor_a[2]) + (vetor_b[2]), -(vetor_a[1]) + (vetor_b[1]))
+
+
+def angulo_direcao(vetor):
+	direcao = (math.atan2(vetor.y, vetor.x) / math.pi) * 180
+	#if direcao < 0:
+		#direcao = 360 + direcao
+	return round(direcao, 2)
+

@@ -52,11 +52,15 @@ class SuicideBurn:
 		self.calcular_parametros()
 		print("Força de TWR da Nave: ", self.nave_twr_max)
 		self.controle_acel.tempo_amostragem(40)
-		self.controle_acel.ajustar_pid(0.03, 0.001, 0.01)  # <== AJUSTES PID
 		self.controle_pouso.tempo_amostragem(40)
-		self.controle_pouso.ajustar_pid(0.5, 0.001, 1)  # <== AJUSTES PID
-		self.controle_pouso.limitar_saida(0.5 / self.nave_twr_max, 0.9 / self.nave_twr_max)
-		self.controle_pouso.limite_pid(4)
+
+		self.controle_acel.ajustar_pid(0.025, 0.001, 0.05)  # <== AJUSTES PID
+		self.controle_pouso.ajustar_pid(0.1, 0.001, 0.1)  # <== AJUSTES PID
+		# Limita a aceleração da nave:
+		self.controle_acel.limitar_saida(0, 1)
+		self.controle_pouso.limitar_saida(0.75 / self.nave_twr_max, 1)
+		self.controle_pouso.limite_pid(0)
+
 		self.nave_atual.auto_pilot.engage()  # LIGAR O PILOTO
 		self.decolagem_de_teste()
 		self.nav.navegacao(__class__.centro_espacial, self.nave_atual)
@@ -73,8 +77,7 @@ class SuicideBurn:
 			if self.altitude_da_nave() < 4000:
 				self.nave_atual.control.rcs = True
 			# self.controle_acel.ajustar_pid(round(self.nave_twr_max, 1) / 200, 0.001, 1)
-			self.controle_acel.ajustar_pid(0.05, 0.001, 1)
-			self.controle_pouso.ajustar_pid(round(self.nave_twr_max, 1) / 10, 0.001, 0.1)
+
 			if (0 > self.altitude_da_nave() - self.distancia_ate_queima - self.distancia_pouso) and (self.vel_vert_nave() < -1):
 				self.exec_suicide_burn = True
 				print("Iniciando o Suicide Burn!")
@@ -91,23 +94,21 @@ class SuicideBurn:
 			self.controle_acel.entrada_pid(self.altitude_da_nave())
 			self.controle_acel.limite_pid(self.distancia_ate_queima)
 			self.controle_pouso.entrada_pid(self.vel_vert_nave())
-			# Limita a aceleração da nave entre 50% de TWR e o máx de aceleração
-			self.controle_acel.limitar_saida(0.5 / self.nave_twr_max, 1)
 
 			# Aponta nave para o retrograde se a velocidade horizontal for maior que 1m/s
-			if self.altitude_da_nave() > self.distancia_pouso and self.vel_vert_nave() < -1:
+			if self.altitude_da_nave() > self.distancia_pouso:
 				self.pode_pousar = False
 			else:
 				self.pode_pousar = True
 
-			if self.voo_nave.horizontal_speed > 0.5 and self.pode_pousar is False:
+			if self.voo_nave.horizontal_speed > 0.5:
 				self.nav.mirar_nave()
 			else:
 				self.nave_atual.control.target_pitch = 0
 			# Acelera o foguete de acordo com o PID:
 			correcao_anterior = self.nave_atual.control.throttle
 			try:
-				if self.pode_pousar is False: # and (0 > self.altitude_da_nave() - self.distancia_ate_queima - 100):
+				if self.pode_pousar is False:
 					self.aceleracao(float((correcao_anterior + self.controle_acel.computar_pid()) / 2))
 					print("Valor Saída ACEL: ", self.controle_acel.computar_pid())
 				else:
