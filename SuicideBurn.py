@@ -53,16 +53,15 @@ class SuicideBurn:
 		print("Força de TWR da Nave: ", self.nave_twr_max)
 		self.controle_acel.tempo_amostragem(40)
 		self.controle_pouso.tempo_amostragem(40)
-
-		self.controle_acel.ajustar_pid(0.025, 0.001, 0.05)  # <== AJUSTES PID
+		self.controle_acel.ajustar_pid(0.025, 0.001, 0.025)  # <== AJUSTES PID
 		self.controle_pouso.ajustar_pid(0.1, 0.001, 0.1)  # <== AJUSTES PID
 		# Limita a aceleração da nave:
+		self.nave_atual.auto_pilot.engage()  # LIGAR O PILOTO
+		self.decolagem_de_teste()
+		self.calcular_parametros()
 		self.controle_acel.limitar_saida(0, 1)
 		self.controle_pouso.limitar_saida(0.75 / self.nave_twr_max, 1)
 		self.controle_pouso.limite_pid(0)
-
-		self.nave_atual.auto_pilot.engage()  # LIGAR O PILOTO
-		self.decolagem_de_teste()
 		self.nav.navegacao(__class__.centro_espacial, self.nave_atual)
 
 		while not self.exec_suicide_burn:  # LOOP esperando para executar o SuicideBurn
@@ -101,7 +100,7 @@ class SuicideBurn:
 			else:
 				self.pode_pousar = True
 
-			if self.voo_nave.horizontal_speed > 0.5:
+			if self.voo_nave.horizontal_speed > 0.2:
 				self.nav.mirar_nave()
 			else:
 				self.nave_atual.control.target_pitch = 0
@@ -109,7 +108,7 @@ class SuicideBurn:
 			correcao_anterior = self.nave_atual.control.throttle
 			try:
 				if self.pode_pousar is False:
-					self.aceleracao(float((correcao_anterior + self.controle_acel.computar_pid()) / 2))
+					self.aceleracao(float((correcao_anterior + self.controle_acel.computar_pid() + 1 / self.nave_twr_max) / 3))
 					print("Valor Saída ACEL: ", self.controle_acel.computar_pid())
 				else:
 					self.aceleracao(float(self.controle_pouso.computar_pid()))

@@ -57,8 +57,6 @@ class Vetor:
 
 	def angulo_direcao(self):
 		self.direcao = (math.atan2(self.y, self.x) / math.pi) * 180
-		if self.direcao < 0:
-			self.direcao = 360 + self.direcao
 		return self.direcao
 
 
@@ -68,7 +66,5 @@ def vetor_distancia(vetor_a, vetor_b):
 
 def angulo_direcao(vetor):
 	direcao = (math.atan2(vetor.y, vetor.x) / math.pi) * 180
-	#if direcao < 0:
-		#direcao = 360 + direcao
 	return round(direcao, 2)
 

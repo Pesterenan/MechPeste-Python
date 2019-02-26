@@ -5,7 +5,6 @@
 # Módulo MechRover
 
 import krpc
-import math
 from time import sleep
 from ControlePID import ControlePID
 import Vetor
@@ -16,66 +15,99 @@ class RoverPST:
 	margem_ui = 20
 
 	def __init__(self, arg0):
-		self.conexao_krpc = arg0
-		self.centro_espacial = arg0.space_center
-		self.marcadores = self.centro_espacial.waypoint_manager  # Marcadores no mapa
-		self.rover = self.centro_espacial.active_vessel
-		self.ponto_ref_orbital = self.rover.orbit.body.reference_frame
-		self.ponto_ref = self.rover.surface_reference_frame
-		self.parametros_rover = self.rover.flight(self.ponto_ref)
+		self.conexao_krpc = arg0  # Conexão com o KRPC
+		self.centro_espacial = arg0.space_center  # Objeto do Centro Espacial
+		self.marcadores = self.centro_espacial.waypoint_manager  # Gerenciador de Marcadores no mapa
+		self.rover = self.centro_espacial.active_vessel  # Objeto do Rover (Nave Atual)
+		self.ponto_ref_orbital = self.rover.orbit.body.reference_frame  # Ponto de Referência Orbital
+		self.ponto_ref_superficie = self.rover.surface_reference_frame  # Ponto de Referência da Superfície
+		self.ponto_ref_rover = self.rover.reference_frame  # Ponto de Referência do Rover
+		self.parametros_rover = self.rover.flight(self.ponto_ref_orbital)  # Parâmetros de "voo" do Rover
+		# Definindo Vetores de posição e direção:
+		self.posicao_rover = Vetor.Vetor(0, 0)
+		self.posicao_alvo = Vetor.Vetor(0, 0)
+		self.direcao_rover = Vetor.Vetor(0, 0)
+		self.distancia_entre_pontos = Vetor.Vetor(0, 0)
+		# Variáveis de Angulo:
+		self.angulo_alvo = 0.0
+		self.angulo_rover = 0.0
 
-		print("O nome do Rover é: {0:.20}".format(self.rover.name))
-		self.alvo = self.centro_espacial.target_vessel
-		print("Está buscando o alvo: {0:.20}".format(str(self.definir_alvo())))
-		print()
-		self.controle_direcao = ControlePID()
-		self.controle_direcao.ajustar_pid(0.01, 0.001, 0.1)
-		self.controle_aceleracao = ControlePID()
-		self.controle_aceleracao.ajustar_pid(0.1, 0.001, 0.1)
+		print("O nome do Rover é: {0:.30}".format(self.rover.name))
+		self.alvo = self.definir_alvo()
+		if self.alvo is not None:
+			print("Está buscando o alvo: {0:.30}".format(str(self.alvo.name)), "\n")
+
+		self.ctrl_direcao = ControlePID()
+		self.ctrl_direcao.ajustar_pid(0.01, 0.001, 0.01)
+		self.ctrl_aceleracao = ControlePID()
+		self.ctrl_aceleracao.ajustar_pid(0.5, 0.001, 0.1)
+		self.ctrl_distancia_alvo = ControlePID()
+		self.ctrl_distancia_alvo.ajustar_pid(0.1, 0.001, 5)
+		self.ctrl_distancia_alvo.limitar_saida(-1, 1)
+		self.limite_distancia_alvo = 50
+		self.velocidade_maxima = 15
+		self.velocidade_curva = 3
 		self.construir_painel_info()
 		self.controlar_rover()
 
 	def controlar_rover(self):
 		while True:
-			self.definir_alvo()
-			self.posicao_rover = Vetor.Vetor(self.posicionar_vetor(self.rover.position(self.ponto_ref)))
+			try:
+				self.definir_vetor_direcao(self.definir_alvo())
+				self.informar_ctrl_pid()
+				# Com tudo calculado, pilotar o rover:
+				if self.distancia_entre_pontos.magnitude() > self.limite_distancia_alvo:
+					self.acelerar_rover(self.ctrl_aceleracao.computar_pid())
+					self.pilotar_rover()
+				else:
+					self.acelerar_rover(self.ctrl_aceleracao.computar_pid() * self.ctrl_distancia_alvo.computar_pid())
 
-			self.posicao_alvo = Vetor.Vetor(self.posicionar_vetor(self.alvo.position(self.ponto_ref)))
+				self.atualizar_infos()
+			except AttributeError:
+				print("Sem alvo selecionado")
+				sleep(1)
 
-			self.direcao_rover = Vetor.Vetor(self.rover.direction(self.ponto_ref_orbital))
-			print(self.direcao_rover, "3")
-
-			self.distancia_entre_pontos = self.posicao_alvo.subtrai(self.posicao_rover)
-			print(self.distancia_entre_pontos.normalizar())
-			self.angulo_alvo = Vetor.angulo_direcao(self.distancia_entre_pontos.normalizar())
-			self.angulo_rover = Vetor.angulo_direcao(self.direcao_rover)
-
-			self.controle_direcao.entrada_pid((self.angulo_rover))
-
-			self.controle_direcao.limite_pid(self.angulo_alvo)
-			self.controle_aceleracao.entrada_pid(self.parametros_rover.horizontal_speed)
-			self.controle_aceleracao.limite_pid(1)
-
-			#print(self.controle_direcao.computar_pid(), "PID DIR")
-			if not 0 < self.angulo_alvo - self.angulo_rover < 3:
-				self.rover.control.wheel_steering = self.controle_direcao.computar_pid()
-
-
-			else:
-				self.rover.control.wheel_steering = 0
-
-			#print(self.controle_aceleracao.computar_pid(), "PID ACEL")
-			#self.acelerar_rover(self.controle_aceleracao.computar_pid())
-			#print(self.distancia_entre_pontos.magnitude(), "DISTANCIA")
-			self.atualizar_infos()
 			sleep(0.05)
+
+	def informar_ctrl_pid(self):
+		# Informar ao PID de controle de direção os ângulos e tentar zerar a diferença entre eles:
+		self.ctrl_direcao.entrada_pid(self.angulo_rover - abs(self.angulo_alvo))
+		self.ctrl_direcao.limite_pid(0)
+		# Informar ao PID de aceleração a velocidade horizontal e limitar:
+		self.ctrl_aceleracao.entrada_pid(self.parametros_rover.horizontal_speed)
+		self.ctrl_distancia_alvo.entrada_pid(self.limite_distancia_alvo - self.distancia_entre_pontos.magnitude())
+		self.ctrl_distancia_alvo.limite_pid(0)
+		diferenca_angulo = self.angulo_rover - abs(self.angulo_alvo)
+		if abs(diferenca_angulo) > 30:
+			self.ctrl_aceleracao.limite_pid(self.velocidade_curva)
+		else:
+			self.ctrl_aceleracao.limite_pid(self.velocidade_maxima)
+
+	def definir_vetor_direcao(self, alvo):
+		# Vetor de posição do Rover em relacão à superfície:
+		self.posicao_rover = Vetor.Vetor(self.posicionar_vetor(self.rover.position(self.ponto_ref_superficie)))
+		# Vetor de posição do Alvo em relacão ao rover e a órbita:
+		self.posicao_alvo = Vetor.Vetor(self.posicionar_vetor(alvo.position(self.ponto_ref_rover)))
+		# Vetor de posição do alvo em relacão à superfície e ao rover:
+		self.direcao_rover = Vetor.Vetor(alvo.position(self.ponto_ref_rover))
+		# Vetor de distância do alvo em relacão rover:
+		self.distancia_entre_pontos = self.posicao_rover.subtrai(self.posicao_alvo)
+		# Calculando angulos até o alvo e da direção do rover
+		self.angulo_alvo = Vetor.angulo_direcao(self.distancia_entre_pontos)
+		self.angulo_rover = Vetor.angulo_direcao(self.direcao_rover)
+
+	def pilotar_rover(self):
+		if not 0 < self.angulo_alvo - self.angulo_rover < 1:
+			self.rover.control.wheel_steering = -self.ctrl_direcao.computar_pid()
+		else:
+			self.rover.control.wheel_steering = 0
 
 	def posicionar_vetor(self, arg):
 		if type(arg) is Vetor.Vetor:
 			vetor = (arg.x, arg.y, 0)
-			vetor_retorno = self.centro_espacial.transform_position(vetor, self.ponto_ref, self.ponto_ref_orbital)
+			vetor_retorno = self.centro_espacial.transform_position(vetor, self.ponto_ref_superficie, self.ponto_ref_orbital)
 		else:
-			vetor_retorno = self.centro_espacial.transform_position(arg, self.ponto_ref, self.ponto_ref_orbital)
+			vetor_retorno = self.centro_espacial.transform_position(arg, self.ponto_ref_superficie, self.ponto_ref_orbital)
 		return round(vetor_retorno[0], 2), round(vetor_retorno[1], 2), round(vetor_retorno[2], 2)
 
 	def acelerar_rover(self, arg0):
@@ -86,7 +118,7 @@ class RoverPST:
 			self.alvo = self.centro_espacial.target_vessel
 			return self.alvo
 		except AttributeError:
-			return "SEM ALVO"
+			return None
 
 	def construir_painel_info(self):
 		# Tela do jogo:
@@ -123,16 +155,15 @@ class RoverPST:
 		self.txt_distancia_alvo.size = 12
 
 	def atualizar_infos(self):
-		self.txt_angulo_rover.content = "Angulo Rover: " + str(self.angulo_rover)
-		self.txt_angulo_alvo.content = "Angulo Alvo: " + str(self.angulo_alvo)
+		self.txt_angulo_rover.content = "Correção de Ângulo: " + str(round(self.angulo_rover - abs(self.angulo_alvo),2))
+		self.txt_angulo_alvo.content = "Acelerador: " + str(round(self.ctrl_aceleracao.computar_pid(),2))
 		self.txt_angulo_distancia.content = "Angulo Distância: " + str(Vetor.angulo_direcao(self.distancia_entre_pontos))
 		self.txt_distancia_alvo.content = "Distância: " + str(round(self.distancia_entre_pontos.magnitude(), 1)) + "m"
+
 
 if __name__ == "__main__":
 	conexao = krpc.connect(name="RoverPST")
 	mr = RoverPST(conexao)
-
-
 
 # REFERENCE_FRAME = ORIENTADO E POSICIONADO COM A NAVE
 # O EIXO X É PRA DIREITA
