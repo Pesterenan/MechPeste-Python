@@ -44,7 +44,7 @@ class DecolagemOrbital():
 
 		while True:
 			if self.programa == 0:
-				self.iniciar_lançamento()
+				self.iniciar_lancamento()
 			elif self.programa == 1:
 				self.giro_gravitacional()
 			elif self.programa == 2:
@@ -52,7 +52,7 @@ class DecolagemOrbital():
 
 			sleep(0.40)
 
-	def iniciar_lançamento(self):
+	def iniciar_lancamento(self):
 		#	Iniciar Lancamento:
 		self.nave_atual.control.sas = False # desligar SAS
 		self.nave_atual.control.rcs = False # desligar RCS
